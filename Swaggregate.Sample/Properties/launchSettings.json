@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "Swaggregate.Sample": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "api-docs",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:7080;http://localhost:5080"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>Swaggregate</PackageId>
+    <AssemblyName>Swaggregate</AssemblyName>
+    <RootNamespace>Swaggregate</RootNamespace>
+    <Version>1.0.0</Version>
+    <Authors>kevinhicks</Authors>
+    <Description>ASP.NET Core middleware that aggregates multiple Swagger/OpenAPI specs into a single, searchable documentation portal — no extra infrastructure required.</Description>
+    <PackageTags>swagger;openapi;aggregator;documentation;aspnetcore;api-portal</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/kevinhicks/Swaggregate</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/kevinhicks/Swaggregate</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="EmbeddedUI\**\*" />
+  </ItemGroup>
+
+</Project>
