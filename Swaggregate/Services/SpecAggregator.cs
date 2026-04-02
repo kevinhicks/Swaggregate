@@ -44,9 +44,9 @@ public class SpecAggregator
             SourceUrl = endpoint.Url
         };
 
-        var (success, json, error) = await _fetcher.FetchAsync(endpoint.Url, cacheTtlMinutes, ct);
+        var (success, content, contentType, error) = await _fetcher.FetchAsync(endpoint.Url, cacheTtlMinutes, ct);
 
-        if (!success || json is null)
+        if (!success || content is null)
         {
             group.FetchError = true;
             group.FetchErrorMessage = error ?? "Unknown error";
@@ -55,6 +55,10 @@ public class SpecAggregator
 
         try
         {
+            var json = IsYaml(endpoint.Url, contentType, content)
+                ? YamlConverter.ToJson(content)
+                : content;
+
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -339,6 +343,27 @@ public class SpecAggregator
             });
         }
         return result;
+    }
+
+    private static bool IsYaml(string url, string? contentType, string content)
+    {
+        // 1. URL extension
+        var path = new Uri(url, UriKind.RelativeOrAbsolute).IsAbsoluteUri
+            ? new Uri(url).AbsolutePath
+            : url;
+        if (path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
+            path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // 2. Content-Type header
+        if (contentType is not null &&
+            (contentType.Contains("yaml", StringComparison.OrdinalIgnoreCase) ||
+             contentType.Contains("x-yaml", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        // 3. Content sniff — JSON always starts with { or [
+        var trimmed = content.TrimStart();
+        return trimmed.Length > 0 && trimmed[0] != '{' && trimmed[0] != '[';
     }
 
     private static string? TryGetString(JsonElement el, string prop) =>

@@ -18,14 +18,14 @@ public class SpecFetcher : ISpecFetcher
         _logger = logger;
     }
 
-    public async Task<(bool success, string? json, string? error)> FetchAsync(string url, int cacheTtlMinutes = 5, CancellationToken ct = default)
+    public async Task<(bool success, string? content, string? contentType, string? error)> FetchAsync(string url, int cacheTtlMinutes = 5, CancellationToken ct = default)
     {
         var cacheKey = $"swagger_spec_{url}";
 
         if (_cache.TryGetValue(cacheKey, out CachedSpec? cached) && cached is not null)
         {
             _logger.LogDebug("Serving spec from cache: {Url}", url);
-            return (cached.Success, cached.Json, cached.Error);
+            return (cached.Success, cached.Content, cached.ContentType, cached.Error);
         }
 
         _logger.LogDebug("Fetching spec: {Url}", url);
@@ -38,11 +38,12 @@ public class SpecFetcher : ISpecFetcher
 
             var response = await client.GetAsync(url, cts.Token);
             response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync(cts.Token);
+            var content = await response.Content.ReadAsStringAsync(cts.Token);
+            var contentType = response.Content.Headers.ContentType?.MediaType;
 
-            var result = new CachedSpec { Success = true, Json = json };
+            var result = new CachedSpec { Success = true, Content = content, ContentType = contentType };
             _cache.Set(cacheKey, result, TimeSpan.FromMinutes(cacheTtlMinutes));
-            return (true, json, null);
+            return (true, content, contentType, null);
         }
         catch (Exception ex)
         {
@@ -50,14 +51,15 @@ public class SpecFetcher : ISpecFetcher
             var error = new CachedSpec { Success = false, Error = ex.Message };
             // Cache failures briefly to avoid hammering a down service
             _cache.Set(cacheKey, error, TimeSpan.FromSeconds(30));
-            return (false, null, ex.Message);
+            return (false, null, null, ex.Message);
         }
     }
 
     private sealed class CachedSpec
     {
         public bool Success { get; init; }
-        public string? Json { get; init; }
+        public string? Content { get; init; }
+        public string? ContentType { get; init; }
         public string? Error { get; init; }
     }
 }
