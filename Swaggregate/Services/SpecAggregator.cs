@@ -41,7 +41,8 @@ public class SpecAggregator
         var group = new ServiceGroup
         {
             Name = endpoint.Name,
-            SourceUrl = endpoint.Url
+            SourceUrl = endpoint.Url,
+            PathPrefix = endpoint.PathPrefix
         };
 
         var (success, content, contentType, error) = await _fetcher.FetchAsync(endpoint.Url, cacheTtlMinutes, ct);
@@ -64,7 +65,7 @@ public class SpecAggregator
 
             // Detect spec version
             if (root.TryGetProperty("openapi", out var openApiProp))
-                ParseOpenApi3(root, group, endpoint.PathPrefix);
+                ParseOpenApi3(root, group, endpoint.PathPrefix, endpoint.Url);
             else if (root.TryGetProperty("swagger", out _))
                 ParseSwagger2(root, group, endpoint.PathPrefix);
             else
@@ -87,13 +88,32 @@ public class SpecAggregator
     // OpenAPI 3.x parser
     // -------------------------------------------------------------------------
 
-    private static void ParseOpenApi3(JsonElement root, ServiceGroup group, string? pathPrefix)
+    private static void ParseOpenApi3(JsonElement root, ServiceGroup group, string? pathPrefix, string specUrl)
     {
         if (root.TryGetProperty("info", out var info))
         {
             group.Description = info.TryGetProperty("description", out var d) ? d.GetString() : null;
             group.Version = info.TryGetProperty("version", out var v) ? v.GetString() : null;
         }
+
+        // Parse base URL from servers array
+        if (root.TryGetProperty("servers", out var servers))
+        {
+            foreach (var server in servers.EnumerateArray())
+            {
+                var url = TryGetString(server, "url");
+                if (url is null) continue;
+                // Use absolute URLs only; relative ones (e.g. "/api") fall through to the specUrl fallback
+                if (Uri.TryCreate(url, UriKind.Absolute, out var parsed))
+                {
+                    group.BaseUrl = parsed.ToString().TrimEnd('/');
+                    break;
+                }
+            }
+        }
+        // Fallback: derive base from the spec URL's origin
+        if (group.BaseUrl is null && Uri.TryCreate(specUrl, UriKind.Absolute, out var specUri))
+            group.BaseUrl = $"{specUri.Scheme}://{specUri.Authority}";
 
         if (root.TryGetProperty("tags", out var tagsEl))
             group.Tags = ParseTags(tagsEl);
@@ -229,6 +249,17 @@ public class SpecAggregator
         {
             group.Description = info.TryGetProperty("description", out var d) ? d.GetString() : null;
             group.Version = info.TryGetProperty("version", out var v) ? v.GetString() : null;
+        }
+
+        // Parse base URL from host + basePath + schemes
+        if (root.TryGetProperty("host", out var hostEl))
+        {
+            var host = hostEl.GetString() ?? "";
+            var scheme = "https";
+            if (root.TryGetProperty("schemes", out var schemesEl))
+                scheme = schemesEl.EnumerateArray().FirstOrDefault().GetString() ?? "https";
+            var basePath = root.TryGetProperty("basePath", out var bp) ? bp.GetString()?.TrimEnd('/') : "";
+            group.BaseUrl = $"{scheme}://{host}{basePath}";
         }
 
         if (root.TryGetProperty("tags", out var tagsEl))

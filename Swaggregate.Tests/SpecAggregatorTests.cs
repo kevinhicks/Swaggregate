@@ -367,6 +367,74 @@ public class SpecAggregatorTests
         Assert.True(result.Services.First(s => s.Name == "Down").FetchError);
     }
 
+    // ── BaseUrl parsing tests ─────────────────────────────────────────────────
+
+    private const string OpenApi3WithServers = """
+        {
+          "openapi": "3.0.0",
+          "info": { "title": "Served API", "version": "1.0" },
+          "servers": [{ "url": "https://api.myservice.com/v2" }],
+          "paths": {}
+        }
+        """;
+
+    private const string Swagger2WithHost = """
+        {
+          "swagger": "2.0",
+          "info": { "title": "Hosted API", "version": "1.0" },
+          "host": "api.legacy.com",
+          "basePath": "/v1",
+          "schemes": ["https"],
+          "paths": {}
+        }
+        """;
+
+    [Fact]
+    public async Task AggregateAsync_OpenApi3WithServers_SetsBaseUrl()
+    {
+        var fetcher = new FakeSpecFetcher(OpenApi3WithServers, "application/json");
+        var agg = CreateAggregator(fetcher);
+
+        var result = await agg.AggregateAsync(OneEndpoint("Test", "https://example.com/swagger.json"));
+
+        Assert.Equal("https://api.myservice.com/v2", result.Services[0].BaseUrl);
+    }
+
+    [Fact]
+    public async Task AggregateAsync_OpenApi3NoServers_FallsBackToSpecUrlOrigin()
+    {
+        var fetcher = new FakeSpecFetcher(OpenApi3Json, "application/json");
+        var agg = CreateAggregator(fetcher);
+
+        var result = await agg.AggregateAsync(OneEndpoint("Test", "https://orders.internal/swagger/v1/swagger.json"));
+
+        Assert.Equal("https://orders.internal", result.Services[0].BaseUrl);
+    }
+
+    [Fact]
+    public async Task AggregateAsync_Swagger2WithHost_SetsBaseUrl()
+    {
+        var fetcher = new FakeSpecFetcher(Swagger2WithHost, "application/json");
+        var agg = CreateAggregator(fetcher);
+
+        var result = await agg.AggregateAsync(OneEndpoint("Legacy", "https://example.com/swagger.json"));
+
+        Assert.Equal("https://api.legacy.com/v1", result.Services[0].BaseUrl);
+    }
+
+    [Fact]
+    public async Task AggregateAsync_PathPrefix_StoredOnServiceGroup()
+    {
+        var fetcher = new FakeSpecFetcher(OpenApi3Json, "application/json");
+        var agg = CreateAggregator(fetcher);
+        var options = new SwaggerAggregatorOptions();
+        options.AddEndpoint("Test", "https://example.com/swagger.json", pathPrefix: "/gateway/v1");
+
+        var result = await agg.AggregateAsync(options);
+
+        Assert.Equal("/gateway/v1", result.Services[0].PathPrefix);
+    }
+
     // ── AggregatedSpec metadata ───────────────────────────────────────────────
 
     [Fact]

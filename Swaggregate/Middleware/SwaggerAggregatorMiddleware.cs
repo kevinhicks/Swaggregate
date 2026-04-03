@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -12,6 +13,7 @@ public class SwaggerAggregatorMiddleware
     private readonly RequestDelegate _next;
     private readonly SwaggerAggregatorOptions _options;
     private readonly SpecAggregator _aggregator;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<SwaggerAggregatorMiddleware> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -24,11 +26,13 @@ public class SwaggerAggregatorMiddleware
         RequestDelegate next,
         SwaggerAggregatorOptions options,
         SpecAggregator aggregator,
+        IHttpClientFactory httpClientFactory,
         ILogger<SwaggerAggregatorMiddleware> logger)
     {
         _next = next;
         _options = options;
         _aggregator = aggregator;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -42,6 +46,14 @@ public class SwaggerAggregatorMiddleware
             path.Equals(prefix + "/", StringComparison.OrdinalIgnoreCase))
         {
             context.Response.Redirect($"/{prefix}/index.html");
+            return;
+        }
+
+        // Match /{prefix}/proxy — server-side proxy for "Try it out"
+        if (path.Equals(prefix + "/proxy", StringComparison.OrdinalIgnoreCase) &&
+            context.Request.Method == "POST")
+        {
+            await ServeProxyAsync(context);
             return;
         }
 
@@ -64,6 +76,106 @@ public class SwaggerAggregatorMiddleware
         }
 
         await _next(context);
+    }
+
+    private async Task ServeProxyAsync(HttpContext context)
+    {
+        ProxyRequest? req;
+        try
+        {
+            req = await JsonSerializer.DeserializeAsync<ProxyRequest>(
+                context.Request.Body,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
+                context.RequestAborted);
+        }
+        catch
+        {
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("{\"error\":\"Invalid request body\"}");
+            return;
+        }
+
+        if (req is null || string.IsNullOrWhiteSpace(req.Url) || string.IsNullOrWhiteSpace(req.Method))
+        {
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("{\"error\":\"url and method are required\"}");
+            return;
+        }
+
+        // Security: only allow forwarding to configured service origins
+        if (!Uri.TryCreate(req.Url, UriKind.Absolute, out var targetUri))
+        {
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("{\"error\":\"Invalid target URL\"}");
+            return;
+        }
+
+        var allowedOrigins = _options.Endpoints
+            .Select(e => Uri.TryCreate(e.Url, UriKind.Absolute, out var u)
+                ? $"{u.Scheme}://{u.Authority}"
+                : null)
+            .Where(o => o is not null)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var targetOrigin = $"{targetUri.Scheme}://{targetUri.Authority}";
+        if (!allowedOrigins.Contains(targetOrigin))
+        {
+            context.Response.StatusCode = 403;
+            await context.Response.WriteAsync("{\"error\":\"Target URL is not an allowed service origin\"}");
+            return;
+        }
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient("Swaggregate");
+            using var httpReq = new HttpRequestMessage(new HttpMethod(req.Method.ToUpperInvariant()), req.Url);
+
+            // Forward custom headers (skip hop-by-hop)
+            if (req.Headers is not null)
+            {
+                foreach (var (key, value) in req.Headers)
+                    httpReq.Headers.TryAddWithoutValidation(key, value);
+            }
+
+            if (!string.IsNullOrEmpty(req.Body))
+            {
+                var mediaType = req.Headers?.GetValueOrDefault("Content-Type") ?? "application/json";
+                httpReq.Content = new StringContent(req.Body, Encoding.UTF8, mediaType);
+            }
+
+            using var httpResp = await client.SendAsync(httpReq, context.RequestAborted);
+            var body = await httpResp.Content.ReadAsStringAsync(context.RequestAborted);
+
+            var responseHeaders = httpResp.Headers
+                .Concat(httpResp.Content.Headers)
+                .ToDictionary(h => h.Key.ToLowerInvariant(), h => string.Join(", ", h.Value));
+
+            var proxyResult = new
+            {
+                status = (int)httpResp.StatusCode,
+                statusText = httpResp.ReasonPhrase ?? httpResp.StatusCode.ToString(),
+                headers = responseHeaders,
+                body
+            };
+
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(proxyResult, JsonOpts));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Proxy request to {Url} failed", req.Url);
+            context.Response.StatusCode = 502;
+            await context.Response.WriteAsync(
+                JsonSerializer.Serialize(new { error = ex.Message }, JsonOpts));
+        }
+    }
+
+    private sealed class ProxyRequest
+    {
+        public string Url { get; init; } = string.Empty;
+        public string Method { get; init; } = string.Empty;
+        public Dictionary<string, string>? Headers { get; init; }
+        public string? Body { get; init; }
     }
 
     private async Task ServeSpecsAsync(HttpContext context)

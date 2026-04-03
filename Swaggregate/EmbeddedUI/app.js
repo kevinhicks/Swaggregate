@@ -1,6 +1,7 @@
 /* global state */
 let allServices = [];
 let searchTerm = '';
+let proxyBase = '';   // set once on load
 
 const $ = id => document.getElementById(id);
 
@@ -8,6 +9,7 @@ const $ = id => document.getElementById(id);
    Boot
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  proxyBase = window.location.pathname.replace(/\/[^/]*$/, '');
   initTheme();
   loadSpecs();
   $('search-input').addEventListener('input', onSearch);
@@ -105,13 +107,13 @@ function renderService(svc, query) {
 
   // Endpoint cards
   for (const ep of filteredEndpoints) {
-    section.appendChild(renderEndpointCard(ep, query));
+    section.appendChild(renderEndpointCard(ep, svc, query));
   }
 
   return section;
 }
 
-function renderEndpointCard(ep, query) {
+function renderEndpointCard(ep, svc, query) {
   const card = document.createElement('div');
   card.className = `endpoint-card${ep.deprecated ? ' deprecated' : ''}`;
 
@@ -130,7 +132,17 @@ function renderEndpointCard(ep, query) {
 
   const details = document.createElement('div');
   details.className = 'endpoint-details';
-  details.innerHTML = buildDetailsHtml(ep);
+
+  // Schema view
+  const schemaView = document.createElement('div');
+  schemaView.className = 'schema-view';
+  schemaView.innerHTML = buildDetailsHtml(ep);
+
+  // Try it out panel
+  const tryPanel = buildTryItOutPanel(ep, svc);
+
+  details.appendChild(schemaView);
+  details.appendChild(tryPanel);
 
   // Toggle expand
   const toggle = () => {
@@ -224,6 +236,197 @@ function toggleResponse(id) {
   if (el) el.classList.toggle('open');
 }
 window.toggleResponse = toggleResponse;
+
+/* ============================================================
+   Try It Out
+   ============================================================ */
+const HAS_BODY = new Set(['POST', 'PUT', 'PATCH']);
+
+function buildTryItOutPanel(ep, svc) {
+  const wrap = document.createElement('div');
+  wrap.className = 'try-wrap';
+
+  const canTry = !!svc.baseUrl;
+
+  // Toggle button row
+  const toggleRow = document.createElement('div');
+  toggleRow.className = 'try-toggle-row';
+  const btn = document.createElement('button');
+  btn.className = 'try-toggle-btn';
+  btn.textContent = 'Try it out';
+  btn.disabled = !canTry;
+  if (!canTry) btn.title = 'Base URL could not be determined for this service';
+  toggleRow.appendChild(btn);
+  wrap.appendChild(toggleRow);
+
+  if (!canTry) return wrap;
+
+  // Panel (hidden until toggled)
+  const panel = document.createElement('div');
+  panel.className = 'try-panel';
+
+  // Build the raw path (strip pathPrefix for actual requests)
+  const rawPath = svc.pathPrefix && ep.path.startsWith(svc.pathPrefix)
+    ? ep.path.slice(svc.pathPrefix.length) || '/'
+    : ep.path;
+
+  // Path params
+  const pathParams = (ep.parameters || []).filter(p => p.in === 'path');
+  const queryParams = (ep.parameters || []).filter(p => p.in === 'query');
+  const headerParams = (ep.parameters || []).filter(p => p.in === 'header');
+
+  if (pathParams.length || queryParams.length || headerParams.length) {
+    const paramSection = document.createElement('div');
+    paramSection.className = 'try-section';
+    const label = document.createElement('div');
+    label.className = 'try-section-label';
+    label.textContent = 'Parameters';
+    paramSection.appendChild(label);
+
+    [...pathParams, ...queryParams, ...headerParams].forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'try-param-row';
+      row.innerHTML = `
+        <label class="try-param-label">
+          <span class="param-name">${escapeHtml(p.name)}</span>
+          <span class="param-in">${escapeHtml(p.in)}</span>
+          ${p.required ? '<span class="param-required" title="required">*</span>' : ''}
+        </label>
+        <input class="try-param-input" type="text"
+          data-param-name="${escapeHtml(p.name)}"
+          data-param-in="${escapeHtml(p.in)}"
+          placeholder="${escapeHtml(p.description || p.type || '')}" />`;
+      paramSection.appendChild(row);
+    });
+    panel.appendChild(paramSection);
+  }
+
+  // Request body
+  let bodyEditor = null;
+  if (HAS_BODY.has(ep.method)) {
+    const bodySection = document.createElement('div');
+    bodySection.className = 'try-section';
+    const bodyLabel = document.createElement('div');
+    bodyLabel.className = 'try-section-label';
+    bodyLabel.textContent = 'Request Body';
+    bodySection.appendChild(bodyLabel);
+
+    // Pre-populate from schema if available
+    let placeholder = '{}';
+    if (ep.requestBody?.content) {
+      const schema = Object.values(ep.requestBody.content)[0]?.rawSchema;
+      if (schema) placeholder = JSON.stringify(schema, null, 2);
+    }
+    bodyEditor = document.createElement('textarea');
+    bodyEditor.className = 'try-body-editor';
+    bodyEditor.placeholder = placeholder;
+    bodyEditor.rows = 6;
+    bodySection.appendChild(bodyEditor);
+    panel.appendChild(bodySection);
+  }
+
+  // Execute button
+  const execRow = document.createElement('div');
+  execRow.className = 'try-exec-row';
+  const execBtn = document.createElement('button');
+  execBtn.className = 'try-execute-btn';
+  execBtn.innerHTML = '<span class="try-exec-label">Execute</span>';
+  execRow.appendChild(execBtn);
+  panel.appendChild(execRow);
+
+  // Response section
+  const responseSection = document.createElement('div');
+  responseSection.className = 'try-response';
+  responseSection.style.display = 'none';
+  panel.appendChild(responseSection);
+
+  // Execute handler
+  execBtn.addEventListener('click', async () => {
+    // Build URL
+    let url = svc.baseUrl + rawPath;
+    const inputs = panel.querySelectorAll('.try-param-input');
+    const queryParts = [];
+    const reqHeaders = { 'Accept': 'application/json' };
+
+    inputs.forEach(input => {
+      const name = input.dataset.paramName;
+      const inVal = input.dataset.paramIn;
+      const val = input.value.trim();
+      if (!val) return;
+      if (inVal === 'path') url = url.replace(`{${name}}`, encodeURIComponent(val));
+      else if (inVal === 'query') queryParts.push(`${encodeURIComponent(name)}=${encodeURIComponent(val)}`);
+      else if (inVal === 'header') reqHeaders[name] = val;
+    });
+    if (queryParts.length) url += '?' + queryParts.join('&');
+
+    const body = bodyEditor ? (bodyEditor.value.trim() || null) : null;
+    if (body) reqHeaders['Content-Type'] = 'application/json';
+
+    // Show loading
+    responseSection.style.display = 'block';
+    responseSection.innerHTML = '<div class="try-loading"><div class="spinner" style="width:20px;height:20px;border-width:2px"></div><span>Executing…</span></div>';
+    execBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${proxyBase}/proxy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, method: ep.method, headers: reqHeaders, body })
+      });
+      const data = await res.json();
+
+      if (!res.ok && !data.status) throw new Error(data.error || `Proxy error ${res.status}`);
+
+      const statusClass = data.status >= 500 ? 'status-5xx'
+        : data.status >= 400 ? 'status-4xx'
+        : data.status >= 300 ? 'status-3xx'
+        : 'status-2xx';
+
+      let prettyBody = data.body || '';
+      const ct = (data.headers?.['content-type'] || '');
+      if (ct.includes('json')) {
+        try { prettyBody = JSON.stringify(JSON.parse(data.body), null, 2); } catch {}
+      }
+
+      const headersId = `try-hdrs-${Math.random().toString(36).slice(2)}`;
+      const hdrsHtml = Object.entries(data.headers || {})
+        .map(([k, v]) => `<div><span class="try-hdr-key">${escapeHtml(k)}</span>: <span class="try-hdr-val">${escapeHtml(v)}</span></div>`)
+        .join('');
+
+      responseSection.innerHTML = `
+        <div class="try-response-header">
+          <span class="status-badge ${statusClass}">${data.status}</span>
+          <span class="try-status-text">${escapeHtml(data.statusText || '')}</span>
+          <button class="try-hdrs-toggle" onclick="toggleTryHeaders('${headersId}')">Headers</button>
+          <span class="try-request-url">${escapeHtml(url)}</span>
+        </div>
+        <div class="try-response-headers" id="${headersId}">${hdrsHtml}</div>
+        <pre class="try-response-body">${escapeHtml(prettyBody)}</pre>`;
+    } catch (err) {
+      responseSection.innerHTML = `<div class="try-error">⚠ ${escapeHtml(err.message)}</div>`;
+    } finally {
+      execBtn.disabled = false;
+    }
+  });
+
+  // Toggle panel visibility
+  btn.addEventListener('click', () => {
+    const open = panel.classList.toggle('open');
+    btn.classList.toggle('active', open);
+    btn.textContent = open ? 'Cancel' : 'Try it out';
+  });
+
+  wrap.appendChild(panel);
+  return wrap;
+}
+
+function toggleTryHeaders(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+window.toggleTryHeaders = toggleTryHeaders;
+
+
 
 /* ============================================================
    Sidebar nav

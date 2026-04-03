@@ -5,6 +5,18 @@ All notable changes to Swaggregate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **"Try it out"** — execute HTTP requests directly from the portal via a server-side proxy
+  - Path, query, and header parameter input fields
+  - JSON request body editor for POST/PUT/PATCH (pre-populated from schema)
+  - Response panel shows status code, headers, and formatted response body
+  - Proxy validates target URL against configured service origins (SSRF protection)
+- `BaseUrl` and `PathPrefix` fields on `ServiceGroup` to support request construction
+- `POST /api-docs/proxy` middleware endpoint for server-side request forwarding
+- `BaseUrl` parsing: OpenAPI 3.x `servers[0].url` (falls back to spec URL origin); Swagger 2.0 `host`+`basePath`+`schemes`
+
 ## [0.1.0] - 2025-04-03
 
 ### Added

@@ -496,3 +496,103 @@ mark { background: #fef08a; color: inherit; border-radius: 2px; padding: 0 1px; 
   :root { --sidebar-width: 220px; }
   #content-inner { padding: 16px; }
 }
+
+/* ============================================================
+   Try It Out
+   ============================================================ */
+.try-wrap { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 12px; }
+
+.try-toggle-row { display: flex; justify-content: flex-end; }
+
+.try-toggle-btn {
+  font-size: 12px; font-weight: 600; padding: 5px 14px;
+  border: 1.5px solid var(--border-focus); border-radius: var(--radius-sm);
+  background: none; color: var(--border-focus); cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.try-toggle-btn:hover:not(:disabled) { background: var(--border-focus); color: #fff; }
+.try-toggle-btn.active { background: var(--border-focus); color: #fff; }
+.try-toggle-btn:disabled { opacity: .4; cursor: not-allowed; border-color: var(--text-secondary); color: var(--text-secondary); }
+
+.try-panel { display: none; margin-top: 14px; }
+.try-panel.open { display: block; }
+
+.try-section { margin-bottom: 16px; }
+.try-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .7px; color: var(--text-secondary); margin-bottom: 8px;
+}
+
+.try-param-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.try-param-label { display: flex; align-items: center; gap: 6px; min-width: 160px; font-size: 12px; }
+.try-param-input {
+  flex: 1; min-width: 160px; padding: 6px 10px; font-size: 13px;
+  font-family: var(--font-mono); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg-code); color: var(--text-primary);
+  outline: none; transition: border-color var(--transition);
+}
+.try-param-input:focus { border-color: var(--border-focus); }
+
+.try-body-editor {
+  width: 100%; padding: 10px 12px; font-size: 12px; font-family: var(--font-mono);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-code); color: var(--text-primary);
+  resize: vertical; outline: none; transition: border-color var(--transition); line-height: 1.5;
+}
+.try-body-editor:focus { border-color: var(--border-focus); }
+
+.try-exec-row { display: flex; justify-content: flex-start; margin-bottom: 12px; }
+.try-execute-btn {
+  padding: 8px 24px; font-size: 13px; font-weight: 700;
+  background: var(--border-focus); color: #fff; border: none;
+  border-radius: var(--radius-sm); cursor: pointer; transition: opacity var(--transition);
+}
+.try-execute-btn:hover:not(:disabled) { opacity: .85; }
+.try-execute-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.try-loading {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--text-secondary); font-size: 13px; padding: 12px 0;
+}
+
+.try-response {
+  border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;
+}
+.try-response-header {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 12px; background: var(--bg-code); border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.try-status-text { color: var(--text-secondary); }
+.try-request-url {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+}
+.try-hdrs-toggle {
+  font-size: 11px; padding: 2px 8px; background: var(--bg-tag); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary);
+  transition: background var(--transition);
+}
+.try-hdrs-toggle:hover { background: var(--border); }
+
+.try-response-headers {
+  display: none; padding: 10px 12px; background: var(--bg-expanded);
+  border-bottom: 1px solid var(--border); font-size: 11px; font-family: var(--font-mono);
+  line-height: 1.8;
+}
+.try-response-headers.open { display: block; }
+.try-hdr-key { color: var(--text-secondary); }
+.try-hdr-val { color: var(--text-primary); }
+
+.try-response-body {
+  margin: 0; padding: 12px; font-family: var(--font-mono); font-size: 12px;
+  background: var(--bg-code); color: var(--text-primary); overflow-x: auto;
+  white-space: pre; max-height: 400px; overflow-y: auto; line-height: 1.5;
+}
+
+.try-error {
+  padding: 10px 12px; background: #fef2f2; border-top: 1px solid #fecaca;
+  color: #dc2626; font-size: 13px;
+}
+[data-theme="dark"] .try-error { background: #450a0a; border-color: #7f1d1d; color: #fca5a5; }
+
