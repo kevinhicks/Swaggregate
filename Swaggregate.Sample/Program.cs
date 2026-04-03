@@ -6,20 +6,25 @@ builder.Services.AddSwaggerAggregator();
 
 var app = builder.Build();
 
-// Configure Swaggregate with the swagger.json URLs for each of your services.
-// Replace the placeholder URLs below with the actual endpoints in your environment.
+// Real public specs — run the app and browse to /api-docs to see Swaggregate in action.
+// Replace with your own service URLs when integrating into your platform.
 app.UseSwaggerAggregator(opt =>
 {
-    opt.Title = "My API Documentation";
+    opt.Title = "Swaggregate Sample";
     opt.RoutePrefix = "api-docs";
     opt.CacheTtlMinutes = 5;
 
-    opt.AddEndpoint("Open Weather",       "https://idratherbewriting.com/docs/openapi_spec_and_generated_ref_docs/openapi_openweathermapv3.yml");
-    opt.AddEndpoint("FakeRESTApi",        "https://fakerestapi.azurewebsites.net/swagger/v1/swagger.json");
-    opt.AddEndpoint("Pet Store",          "https://petstore.swagger.io/v2/swagger.json"); 
+    // YAML spec (OpenAPI 3.x)
+    opt.AddEndpoint("Open Weather Map",
+        "https://idratherbewriting.com/docs/openapi_spec_and_generated_ref_docs/openapi_openweathermapv3.yml");
+
+    // JSON specs
+    opt.AddEndpoint("FakeRESTApi",
+        "https://fakerestapi.azurewebsites.net/swagger/v1/swagger.json");
+    opt.AddEndpoint("Pet Store (Swagger 2)",
+        "https://petstore.swagger.io/v2/swagger.json");
 });
 
-// Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
 app.Run();

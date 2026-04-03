@@ -1,31 +1,53 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+
+    <!-- Package identity -->
     <PackageId>Swaggregate</PackageId>
     <AssemblyName>Swaggregate</AssemblyName>
     <RootNamespace>Swaggregate</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>0.1.0</Version>
     <Authors>kevinhicks</Authors>
     <Description>ASP.NET Core middleware that aggregates multiple Swagger/OpenAPI specs into a single, searchable documentation portal — no extra infrastructure required.</Description>
-    <PackageTags>swagger;openapi;aggregator;documentation;aspnetcore;api-portal</PackageTags>
+    <PackageTags>swagger;openapi;aggregator;documentation;aspnetcore;api-portal;yaml</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/kevinhicks/Swaggregate</PackageProjectUrl>
     <RepositoryUrl>https://github.com/kevinhicks/Swaggregate</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+
+    <!-- Quality: XML docs for IntelliSense (suppress missing-doc warnings on internal members) -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+
+    <!-- Quality: symbols & deterministic builds -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Deterministic>true</Deterministic>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+
+    <!-- Quality: catch accidental breaking changes at pack time -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+
+    <!-- Don't auto-pack on every build; CI handles it explicitly -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="YamlDotNet" Version="16.*" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.*" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

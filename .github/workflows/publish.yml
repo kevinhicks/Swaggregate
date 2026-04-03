@@ -11,11 +11,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required for Source Link
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            9.0.x
 
       - name: Extract version from tag
         id: version
@@ -25,7 +29,12 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build Swaggregate/Swaggregate.csproj --configuration Release --no-restore
+        run: >
+          dotnet build Swaggregate/Swaggregate.csproj
+          --configuration Release
+          --no-restore
+          -p:ContinuousIntegrationBuild=true
+          -p:Version=${{ steps.version.outputs.VERSION }}
 
       - name: Pack
         run: >
@@ -33,11 +42,19 @@ jobs:
           --configuration Release
           --no-build
           --output ./nupkgs
+          -p:ContinuousIntegrationBuild=true
           -p:Version=${{ steps.version.outputs.VERSION }}
 
       - name: Push to NuGet
         run: >
           dotnet nuget push ./nupkgs/*.nupkg
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Push symbols to NuGet
+        run: >
+          dotnet nuget push ./nupkgs/*.snupkg
           --api-key ${{ secrets.NUGET_API_KEY }}
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate

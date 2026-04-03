@@ -12,17 +12,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required for Source Link
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            9.0.x
 
       - name: Restore dependencies
         run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build --no-restore --configuration Release -p:ContinuousIntegrationBuild=true
 
       - name: Pack (dry run)
-        run: dotnet pack Swaggregate/Swaggregate.csproj --no-build --configuration Release --output ./nupkgs
+        run: dotnet pack Swaggregate/Swaggregate.csproj --no-build --configuration Release --output ./nupkgs -p:ContinuousIntegrationBuild=true
