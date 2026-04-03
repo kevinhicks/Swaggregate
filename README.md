@@ -6,7 +6,9 @@
 
 **Swaggregate** is a zero-dependency ASP.NET Core middleware library that pulls together multiple Swagger / OpenAPI specification endpoints into a single, searchable documentation portal — served directly from your app with no extra infrastructure required.
 
-Instead of telling developers "go find the right Swagger URL for each service," you give them one URL and they can browse, search, and explore every API across your entire platform from one place.
+Instead of telling developers "go find the right Swagger URL for each service," you give them one URL and they can browse, search, explore, and **execute requests against** every API across your entire platform from one place.
+
+![Swaggregate portal screenshot](https://raw.githubusercontent.com/kevinhicks/Swaggregate/main/docs/screenshot.png)
 
 ---
 
