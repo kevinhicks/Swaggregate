@@ -3,6 +3,7 @@
 [![CI](https://github.com/kevinhicks/Swaggregate/actions/workflows/ci.yml/badge.svg)](https://github.com/kevinhicks/Swaggregate/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/Swaggregate.svg)](https://www.nuget.org/packages/Swaggregate)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4)](https://dotnet.microsoft.com)
 
 **Swaggregate** is a zero-dependency ASP.NET Core middleware library that pulls together multiple Swagger / OpenAPI specification endpoints into a single, searchable documentation portal — served directly from your app with no extra infrastructure required.
 
@@ -61,6 +62,13 @@ Swaggregate/
     ├── app.js                       # Vanilla JS: fetch /specs, render, search, theme
     └── styles.css                   # Dark/light theme with CSS custom properties
 ```
+
+---
+
+## Requirements
+
+- .NET **8.0**, **9.0**, or **10.0**
+- ASP.NET Core (included in the .NET SDK — no extra packages needed)
 
 ---
 
